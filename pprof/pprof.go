@@ -2,6 +2,7 @@ package gopprof
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"net/http"
 	"net/http/pprof"
@@ -11,7 +12,6 @@ import (
 	"time"
 
 	"github.com/julienschmidt/httprouter"
-	"github.com/prometheus/common/log"
 
 	"github.com/pyihe/external/concurrency"
 )
@@ -92,7 +92,8 @@ func (p *pprofServer) ServeHTTP(w http.ResponseWriter, request *http.Request) {
 func (p *pprofServer) run() {
 	ln, err := net.Listen("tcp", p.addr)
 	if err != nil {
-		log.Fatalf("fail to listen pprof: %v", err)
+		slog.Error("start pprof fail: %v", err)
+		return
 	}
 
 	p.httpServer = &http.Server{
@@ -102,16 +103,17 @@ func (p *pprofServer) run() {
 	err = p.httpServer.Serve(ln)
 	if err != nil && !strings.Contains(err.Error(), "use of closed network connection") &&
 		!strings.Contains(err.Error(), "Server closed") {
-		log.Fatalf("pprof serve fail: %v", err)
+		slog.Error("pprof serve fail: %v", err)
+		return
 	}
-	log.Debugf("pprof closing: %s", p.addr)
+	slog.Debug("pprof closing: %s", p.addr)
 }
 
 func setBlockRateHandler() http.HandlerFunc {
 	return func(w http.ResponseWriter, request *http.Request) {
 		rate, err := strconv.Atoi(request.FormValue("rate"))
 		if err != nil {
-			log.Errorf("fail to set block rate: %v", err)
+			slog.Error("fail to set block rate: %v", err)
 			return
 		}
 		runtime.SetBlockProfileRate(rate)
