@@ -1,12 +1,21 @@
 package alias
 
 type queue struct {
+	size int
 	data []Event
 	prob float64
 }
 
 func newQueue(size int) *queue {
-	return &queue{data: make([]Event, 0, size)}
+	return &queue{
+		size: size,
+		data: make([]Event, 0, size),
+	}
+}
+
+func (q *queue) reset() {
+	q.prob = 0
+	q.data = make([]Event, q.size)
 }
 
 func (q *queue) length() int {
@@ -49,7 +58,7 @@ func (q *queue) remove(event Event) {
 	q.prob = truncFloat(q.prob - event.Prob())
 }
 
-func (q *queue) find(eventId int) (exist bool, idx int, event Event) {
+func (q *queue) find(eventId string) (exist bool, idx int, event Event) {
 	for i, e := range q.data {
 		if e.Id() == eventId {
 			idx = i

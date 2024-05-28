@@ -18,22 +18,24 @@ const (
 )
 
 type Sampler interface {
-	Pick() (bool, int)             // 进行一次采样
-	PickN(int) (bool, map[int]int) // 进行N次采样
-	Add(...Event) error            // 添加概率事件
-	Remove(Event) error            // 删除概率事件
+	Length() int
+	Pick() (bool, string)             // 进行一次采样
+	PickN(int) (bool, map[string]int) // 进行N次采样
+	Add(...Event) error               // 添加概率事件
+	Remove(Event) error               // 删除概率事件
+	Reset()                           // 重置
 }
 
 type Event interface {
 	// Id 概率事件ID
-	Id() int
+	Id() string
 
 	// Prob 概率事件发生的概率
 	Prob() float64
 }
 
 type element struct {
-	id   int
+	id   string
 	prob float64
 	typ  eventType
 }
@@ -54,6 +56,18 @@ func New() Sampler {
 	}
 }
 
+func (c *core) Length() int {
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.evts.length()
+}
+
+func (c *core) Reset() {
+	c.evts.reset()
+	c.prob = nil
+	c.alias = nil
+}
+
 func (c *core) Add(events ...Event) error {
 	if len(events) == 0 {
 		return nil
@@ -72,7 +86,7 @@ func (c *core) Remove(event Event) error {
 	return c.removeEvent(event)
 }
 
-func (c *core) PickN(n int) (bool, map[int]int) {
+func (c *core) PickN(n int) (bool, map[string]int) {
 	c.mu.RLock()
 	l := c.evts.length()
 	if c.evts.prob < 1 {
@@ -84,7 +98,7 @@ func (c *core) PickN(n int) (bool, map[int]int) {
 		randomIdx  int
 		prob       float64
 	)
-	result := make(map[int]int)
+	result := make(map[string]int)
 	for i := 0; i < n; i++ {
 		randomIdx = c.rad.Intn(l)
 		prob = c.rad.Float64()
@@ -100,7 +114,7 @@ func (c *core) PickN(n int) (bool, map[int]int) {
 	return len(result) > 0, result
 }
 
-func (c *core) Pick() (ok bool, id int) {
+func (c *core) Pick() (ok bool, id string) {
 	c.mu.RLock()
 	var n = c.evts.length()
 	if c.evts.prob < 1 {
@@ -110,6 +124,9 @@ func (c *core) Pick() (ok bool, id int) {
 	var randomIdx = c.rad.Intn(n) // 落在哪个概率事件所在的列中
 	var prob = c.rad.Float64()    // 访问该列中随机事件的概率
 
+	if randomIdx >= c.evts.length() {
+		return
+	}
 	// 根据随机的概率来决定最终落在哪个事件上
 	if targetLine = c.prob[randomIdx]; prob > targetLine.prob {
 		targetLine = c.alias[randomIdx]
@@ -169,7 +186,7 @@ func (c *core) construction() {
 	if totalProb < 1 {
 		n += 1
 		e := &element{
-			id:   -1,
+			id:   "",
 			prob: truncFloat((1 - totalProb) * float64(n)),
 			typ:  none,
 		}
@@ -233,6 +250,6 @@ func (c *core) construction() {
 }
 
 func truncFloat(v float64) float64 {
-	v, _ = strconv.ParseFloat(fmt.Sprintf("%.2f", v), 64)
+	v, _ = strconv.ParseFloat(fmt.Sprintf("%.4f", v), 64)
 	return v
 }

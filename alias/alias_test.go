@@ -3,11 +3,11 @@ package alias
 import "testing"
 
 type event struct {
-	id   int
+	id   string
 	prob float64
 }
 
-func (e *event) Id() int {
+func (e *event) Id() string {
 	return e.id
 }
 
@@ -16,12 +16,12 @@ func (e *event) Prob() float64 {
 }
 
 var testdata = []Event{
-	&event{1, 0.1},
-	&event{2, 0.1},
-	&event{3, 0.2},
-	&event{4, 0.3},
-	&event{5, 0.29},
-	&event{6, 0.01},
+	&event{"1", 0.1},
+	&event{"2", 0.1},
+	&event{"3", 0.2},
+	&event{"4", 0.3},
+	&event{"5", 0.29},
+	&event{"6", 0.01},
 }
 
 func TestCore_Pick(t *testing.T) {
